@@ -25,6 +25,7 @@ const processQueuedItems = async () => {
         resolveBodyOnly: true
     });
 
+    logger(`queued items found ${queuedItems.length}`);
     for (const queuedItem of queuedItems) {
         try {
             const progressReporter = (prog: UploadProgress) => {

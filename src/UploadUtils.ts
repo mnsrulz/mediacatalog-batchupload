@@ -15,9 +15,16 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
             'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
             'Content-Length': `${contentLen}`
         }
+    }).on('data', (_: any, __: any) => {
+        logger('upload data event received!!!');
+    }).on('end', (_: any, __: any) => {
+        logger('upload completed!!!');
+    }).on('error', (_: any, __: any) => {
+        throw new Error(`Error occurred while uploading. Ex: ${_}`);
     });
     const timer = setInterval(() => {
-        logger('Progress: ', uploadStream.uploadProgress);
+        const { total, transferred, percent } = uploadStream.uploadProgress;
+        logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
     try {

@@ -7,10 +7,11 @@ import debug from 'debug';
 
 export class BatchUploadRequestProcessor {
     public async process() {
-        while (true) {            
+        while (true) {
+            console.log('processing starting...')
             debug('processing...');
             await delay(5000);
-            await processQueuedItems();            
+            await processQueuedItems();
         }
     }
 }

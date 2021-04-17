@@ -3,8 +3,11 @@ import { promisify } from 'util';
 import { pipeline } from 'stream';
 const pipelineAsync = promisify(pipeline);
 import { UploadProgress } from "./Models";
+import debug from 'debug';
+const logger = debug('UploadUtils');
 
 export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress: (prog: UploadProgress) => any) => {
+    logger.log('Initializing the upload...')
     const { headers } = await got.head(fileUrl);
     const contentLen = parseInt(headers['content-length'] || '');
     const uploadStream = got.stream.put(remoteUrl, {
@@ -14,6 +17,7 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
         }
     });
     const timer = setInterval(() => {
+        logger('Progress: ', uploadStream.uploadProgress);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
 
@@ -22,4 +26,5 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
         uploadStream
     );
     clearInterval(timer);
+    logger('Upload completed...');
 }

@@ -4,14 +4,14 @@ import { handleUploadProgress, handleError } from "./RemoteUploadApiMethods";
 import { uploadAsync } from "./UploadUtils";
 import delay from 'delay';
 import debug from 'debug';
+const processingDelay = parseInt(process.env.PROCESS_BATCH_DELAY || '60000');   //in milli seconds
 
 const logger = debug('BatchUploadRequestProcessor');
 export class BatchUploadRequestProcessor {
     public async process() {
-        while (true) {
-            console.log('processing starting...')
+        while (true) {            
             logger('processing...');
-            await delay(5000);
+            await delay(processingDelay);
             await processQueuedItems();
         }
     }

@@ -1,5 +1,7 @@
 import { AuthenticatedApiClient } from "./AuthenticatedApiClient";
 import { RequestItemResponse, UploadProgress } from "./Models";
+import debug from 'debug';
+const logger = debug('RemoteUploadApiMethods');
 
 export const handleError = (queuedItem: RequestItemResponse, error: any) => {
     AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/error`, {
@@ -7,7 +9,7 @@ export const handleError = (queuedItem: RequestItemResponse, error: any) => {
             message: JSON.stringify(error)
         }
     }).catch(() => {
-        console.log('error occurred while publishing the error.');
+        logger.log('error occurred while publishing the error.');
     });
 }
 
@@ -18,6 +20,6 @@ export const handleUploadProgress = (queuedItem: RequestItemResponse, progress: 
             uploaded: progress.transferred
         }
     }).catch(() => {
-        console.log('error occurred while publishing the progress..');
+        logger.log('error occurred while publishing the progress..');
     });
 }

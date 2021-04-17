@@ -9,7 +9,7 @@ export const handleError = (queuedItem: RequestItemResponse, error: any) => {
             message: JSON.stringify(error)
         }
     }).catch(() => {
-        logger.log('error occurred while publishing the error.');
+        logger('error occurred while publishing the error.');
     });
 }
 
@@ -20,6 +20,6 @@ export const handleUploadProgress = (queuedItem: RequestItemResponse, progress: 
             uploaded: progress.transferred
         }
     }).catch(() => {
-        logger.log('error occurred while publishing the progress..');
+        logger('error occurred while publishing the progress..');
     });
 }

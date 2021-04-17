@@ -9,10 +9,10 @@ const processingDelay = parseInt(process.env.PROCESS_BATCH_DELAY || '60000');   
 const logger = debug('BatchUploadRequestProcessor');
 export class BatchUploadRequestProcessor {
     public async process() {
-        while (true) {            
+        while (true) {
+            await processQueuedItems();
             logger('processing...');
             await delay(processingDelay);
-            await processQueuedItems();
         }
     }
 }
@@ -27,11 +27,14 @@ const processQueuedItems = async () => {
 
     for (const queuedItem of queuedItems) {
         try {
-            const progressReporter = (prog: UploadProgress) => { handleUploadProgress(queuedItem, prog); };
+            const progressReporter = (prog: UploadProgress) => {
+                handleUploadProgress(queuedItem, prog);
+            };
             await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
             await uploadAsync(queuedItem.fileUrl, queuedItem.remoteUrl, progressReporter);
             await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/complete`);
         } catch (error) {
+            logger(error);
             handleError(queuedItem, error);
         }
     }

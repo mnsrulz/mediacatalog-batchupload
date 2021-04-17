@@ -21,12 +21,12 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
-    try {
-        // const inputStream = rawUpload ? got.stream(fileUrl) : await fetchZipStream(fileUrl, fileName);
+    try {        
         await pipelineAsync(
             inputStream,
             uploadStream
         );
+        logger('pipeline async completed!');
         await promise;
     } catch (error) {
         logger('error occurrerd during upload.', error);

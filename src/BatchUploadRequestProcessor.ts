@@ -5,11 +5,12 @@ import { uploadAsync } from "./UploadUtils";
 import delay from 'delay';
 import debug from 'debug';
 
+const logger = debug('BatchUploadRequestProcessor');
 export class BatchUploadRequestProcessor {
     public async process() {
         while (true) {
             console.log('processing starting...')
-            debug('processing...');
+            logger('processing...');
             await delay(5000);
             await processQueuedItems();
         }

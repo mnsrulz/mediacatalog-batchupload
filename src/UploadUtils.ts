@@ -10,18 +10,21 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
     logger('Initializing the upload...')
     const { headers } = await got.head(fileUrl);
     const contentLen = parseInt(headers['content-length'] || '');
-    let hasErrors = false;
+    let _resolve: any;
+    let _reject: any;
+    const promise = new Promise((res, rej) => {
+        _resolve = res;
+        _reject = rej;
+    });
     const uploadStream = got.stream.put(remoteUrl, {
         headers: {
             'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
             'Content-Length': `${contentLen}`
         }
-    }).on('data', (_: any, __: any) => {
-        logger('upload data event received!!!');
-    }).on('end', (_: any, __: any) => {
-        logger('upload completed!!!');
-    }).on('error', (_: any, __: any) => {
-        hasErrors = true;
+    }).on('end', () => {
+        _resolve('upload end event detected.');
+    }).on('error', (err) => {
+        _reject(`error found in the response of stream upload. ${err.message}`);
     });
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
@@ -33,14 +36,12 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
             got.stream(fileUrl),
             uploadStream
         );
+        await promise;
     } catch (error) {
         logger('error occurrerd during upload.', error);
         throw error;
     } finally {
         clearInterval(timer);
-    }
-    if (hasErrors) {
-        throw new Error('Error occrred while uploading the file.');
     }
     logger('Upload completed...');
 }

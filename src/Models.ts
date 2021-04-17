@@ -4,7 +4,9 @@ export interface RequestItemResponse {
     requestId: string,
     fileUrl: string,
     parentUrl: string,
-    remoteUrl: string
+    remoteUrl: string,
+    rawUpload: boolean,
+    fileName: string
 }
 
 export interface UploadProgress {

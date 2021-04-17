@@ -32,7 +32,7 @@ const processQueuedItems = async () => {
                 handleUploadProgress(queuedItem, prog);
             };
             await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
-            await uploadAsync(queuedItem.fileUrl, queuedItem.remoteUrl, progressReporter);
+            await uploadAsync(queuedItem, progressReporter);
             await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/complete`);
         } catch (error) {
             logger(error);

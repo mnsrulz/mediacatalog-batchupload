@@ -2,38 +2,29 @@ import got from "got";
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 const pipelineAsync = promisify(pipeline);
-import { UploadProgress } from "./Models";
+import { RequestItemResponse, UploadProgress } from "./Models";
 import debug from 'debug';
 const logger = debug('UploadUtils');
+import unzipper from 'unzipper';
+import path from "path";
+const request = require("request");
 
-export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress: (prog: UploadProgress) => any) => {
+export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
+    const { fileUrl, fileName, rawUpload, remoteUrl } = queuedItem;
     logger('Initializing the upload...')
-    const { headers } = await got.head(fileUrl);
-    const contentLen = parseInt(headers['content-length'] || '');
-    let _resolve: any;
-    let _reject: any;
-    const promise = new Promise((res, rej) => {
-        _resolve = res;
-        _reject = rej;
-    });
-    const uploadStream = got.stream.put(remoteUrl, {
-        headers: {
-            'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
-            'Content-Length': `${contentLen}`
-        }
-    }).on('end', () => {
-        _resolve('upload end event detected.');
-    }).on('error', (err) => {
-        _reject(`error found in the response of stream upload. ${err.message}`);
-    });
+
+    const { inputStream, size } = rawUpload ? await fetchRawStream(fileUrl) : await fetchZipStream(fileUrl, fileName)
+    const { uploadStream, promise } = prepareUploadStream(remoteUrl, size);
+
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
         logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
     try {
+        // const inputStream = rawUpload ? got.stream(fileUrl) : await fetchZipStream(fileUrl, fileName);
         await pipelineAsync(
-            got.stream(fileUrl),
+            inputStream,
             uploadStream
         );
         await promise;
@@ -45,3 +36,73 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
     }
     logger('Upload completed...');
 }
+
+const prepareUploadStream = (remoteUrl: string, contentLen: number) => {
+    let _resolve: any;
+    let _reject: any;
+    const promise = new Promise((res, rej) => {
+        _resolve = res;
+        _reject = rej;
+    });
+
+    const uploadStream = got.stream.put(remoteUrl, {
+        headers: {
+            'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
+            'Content-Length': `${contentLen}`
+        }
+    }).on('end', () => {
+        _resolve('upload end event detected.');
+    }).on('error', (err) => {
+        _reject(`error found in the response of stream upload. ${err.message}`);
+    });
+    return {
+        promise,
+        uploadStream
+    }
+}
+
+const fetchRawStream = async (fileUrl: string) => {
+    const { headers } = await got.head(fileUrl);
+    const contentLen = parseInt(headers['content-length'] || '');
+    return {
+        size: contentLen,
+        inputStream: got.stream(fileUrl)
+    }
+}
+
+const fetchZipStream = async (fileUrl: string, fileName: string) => {
+    //current build doesn't support custom path. Once that release will remove the request dependency.
+    // const customSource = {
+    //     stream: (offset: number, length: number) => {
+    //         return got.stream(fileUrl, {
+    //             headers: {
+    //                 'Range': `bytes=${offset}-${offset + length}`
+    //             }
+    //         });
+    //     },
+    //     size: async () => {
+    //         const { headers } = await got.head(fileUrl);
+    //         const contentLen = parseInt(headers['content-length'] || '');
+    //         return contentLen;  //fallback to other method if needed            
+    //     }
+    // };
+
+    const directory = await unzipper.Open.url(request, fileUrl);
+    // const directory = await unzipper.Open.url('', {
+
+    // })
+
+    const requestedFileStream = directory.files
+        .filter((x: any) => x.type == "File" && path.basename(x.path) === path.basename(fileName))
+        .pop();
+
+    if (requestedFileStream) {
+        return {
+            size: requestedFileStream.uncompressedSize,
+            inputStream: requestedFileStream.stream()
+        }
+    }
+
+    throw new Error('Unable to find the matching stream!!!');
+}
+

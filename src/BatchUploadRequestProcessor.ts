@@ -11,13 +11,12 @@ const maxQueueConcurrency = parseInt(process.env.CONCURRENCY_MAX || '2');   //in
 const queue = new PQueue({ concurrency: maxQueueConcurrency });
 
 const logger = debug('BatchUploadRequestProcessor');
-export class BatchUploadRequestProcessor {
-    public async process() {
-        while (true) {
-            await processQueuedItems();
-            logger('processing...');
-            await delay(processingDelay);
-        }
+
+export const startProcessing = async () => {
+    while (true) {
+        await processQueuedItems();
+        logger('processing...');
+        await delay(processingDelay);
     }
 }
 
@@ -32,7 +31,7 @@ const processQueuedItems = async () => {
     logger(`queued items found ${queuedItems.length}`);
     for (const queuedItem of queuedItems) {
         logger('checking if queue can handle this...');
-        await queue.onSizeLessThan(maxQueueConcurrency);
+        await queue.onEmpty();
         logger('checking is ready to handle this... queueing up!!!');
         queue.add(() => processItem(queuedItem));
     }

@@ -1,4 +1,4 @@
-import { BatchUploadRequestProcessor } from "./BatchUploadRequestProcessor";
+import {startProcessing} from "./BatchUploadRequestProcessor";
 
 import express from 'express';
 const app = express();
@@ -6,8 +6,7 @@ const port = process.env.PORT || 3000;
 
 (async () => {
   try {
-    const client = new BatchUploadRequestProcessor();
-    await client.process();
+    await startProcessing();
   } catch (error) {
     console.log(error);
   }

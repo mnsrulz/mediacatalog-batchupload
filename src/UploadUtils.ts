@@ -1,13 +1,13 @@
 import got from "got";
 import { promisify } from 'util';
 import { pipeline } from 'stream';
-const pipelineAsync = promisify(pipeline);
 import { RequestItemResponse, UploadProgress } from "./Models";
 import debug from 'debug';
-const logger = debug('UploadUtils');
-import unzipper from 'unzipper';
-import path from "path";
+import { Open } from 'unzipper';
+import { basename } from "path";
 const request = require("request");
+const logger = debug('UploadUtils');
+const pipelineAsync = promisify(pipeline);
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl } = queuedItem;
@@ -21,7 +21,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
-    try {        
+    try {
         await pipelineAsync(
             inputStream,
             uploadStream
@@ -92,13 +92,13 @@ const fetchZipStream = async (fileUrl: string, fileName: string) => {
     //     }
     // };
 
-    const directory = await unzipper.Open.url(request, fileUrl);
+    const directory = await Open.url(request, fileUrl);
     // const directory = await unzipper.Open.url('', {
 
     // })
 
     const requestedFileStream = directory.files
-        .filter((x: any) => x.type == "File" && path.basename(x.path) === path.basename(fileName))
+        .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))
         .pop();
 
     if (requestedFileStream) {

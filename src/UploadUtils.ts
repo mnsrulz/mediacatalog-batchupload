@@ -20,11 +20,16 @@ export const uploadAsync = async (fileUrl: string, remoteUrl: string, onProgress
         logger('Progress: ', uploadStream.uploadProgress);
         onProgress(uploadStream.uploadProgress);
     }, 1000);
-
-    await pipelineAsync(
-        got.stream(fileUrl),
-        uploadStream
-    );
-    clearInterval(timer);
+    try {
+        await pipelineAsync(
+            got.stream(fileUrl),
+            uploadStream
+        );
+    } catch (error) {
+        logger('error occurrerd during upload.', error);
+        throw error;
+    } finally {
+        clearInterval(timer);
+    }
     logger('Upload completed...');
 }

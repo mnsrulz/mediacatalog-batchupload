@@ -50,9 +50,14 @@ const prepareUploadStream = (remoteUrl: string, contentLen: number) => {
             'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
             'Content-Length': `${contentLen}`
         }
+    }).on('data', () => {
+        logger('data event detected.')
+        _resolve('data event detected.');
     }).on('end', () => {
+        logger('upload end event detected.')
         _resolve('upload end event detected.');
     }).on('error', (err) => {
+        logger('error found in the response of stream upload.')
         _reject(`error found in the response of stream upload. ${err.message}`);
     });
     return {

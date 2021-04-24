@@ -13,8 +13,14 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { fileUrl, fileName, rawUpload, remoteUrl } = queuedItem;
     logger('Initializing the upload...')
 
-    const { inputStream, size } = rawUpload ? await fetchRawStream(fileUrl) : await fetchZipStream(fileUrl, fileName)
-    const { uploadStream, promise } = prepareUploadStream(remoteUrl, size);
+    let resumeFromPosition = 0;
+    if (rawUpload) {
+        const byteRange = await fetchStatusOfRemoteUpload(remoteUrl);
+        resumeFromPosition = byteRange?.rangeEnd || 0;
+    }
+
+    const { inputStream, size } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
+    const { uploadStream, promise } = prepareUploadStream(remoteUrl, resumeFromPosition, size);
 
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
@@ -37,7 +43,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     logger('Upload completed...');
 }
 
-const prepareUploadStream = (remoteUrl: string, contentLen: number) => {
+const prepareUploadStream = (remoteUrl: string, start: number, contentLen: number) => {
     let _resolve: any;
     let _reject: any;
     const promise = new Promise((res, rej) => {
@@ -47,7 +53,7 @@ const prepareUploadStream = (remoteUrl: string, contentLen: number) => {
 
     const uploadStream = got.stream.put(remoteUrl, {
         headers: {
-            'Content-Range': `bytes 0-${contentLen - 1}/${contentLen}`,
+            'Content-Range': `bytes ${start}-${contentLen - 1}/${contentLen}`,
             'Content-Length': `${contentLen}`
         }
     }).on('data', () => {
@@ -66,12 +72,16 @@ const prepareUploadStream = (remoteUrl: string, contentLen: number) => {
     }
 }
 
-const fetchRawStream = async (fileUrl: string) => {
+const fetchRawStream = async (fileUrl: string, startPosition: number) => {
     const { headers } = await got.head(fileUrl);
     const contentLen = parseInt(headers['content-length'] || '');
     return {
         size: contentLen,
-        inputStream: got.stream(fileUrl)
+        inputStream: got.stream(fileUrl, {
+            headers: {
+                Range: `bytes=${startPosition}-`
+            }
+        })
     }
 }
 
@@ -111,3 +121,22 @@ const fetchZipStream = async (fileUrl: string, fileName: string) => {
     throw new Error('Unable to find the matching stream!!!');
 }
 
+const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
+
+    const resp = await got.put(remoteUrl, {
+        throwHttpErrors: false
+    });
+
+    if (resp.statusCode === 308) {
+        const { range } = resp.headers;
+        if (range) {
+            const byteEndRange = parseInt(range.split('-').pop() || '0');
+            return {
+                rangeEnd: byteEndRange
+            }
+        }
+    } else {
+        return null;
+    }
+    console.log(resp.headers)
+}

@@ -24,14 +24,13 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
     const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
-    if (inputStream instanceof ReadableStream) {
-        logger('input stream is of type readable.. hooking up the event of error!');
-        inputStream.on('error', err => {
-            logger('error occurred in the readable stream. ending the upload stream.');
-            uploadStream.end();
-            logger('upload stream ended.')
-        });
-    }
+
+    logger('hooking up the error event on input stream!');
+    inputStream.on('error', err => {
+        logger('error occurred in the readable stream. ending the upload stream.');
+        uploadStream.end();
+        logger('upload stream ended.')
+    });
 
     let lastPercentCaptured = 0;
     const timer = setInterval(() => {

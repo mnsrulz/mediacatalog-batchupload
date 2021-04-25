@@ -24,10 +24,15 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
     const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
+    let lastPercentCaptured = 0;
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
         logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
-        onProgress(uploadStream.uploadProgress);
+        if (percent > lastPercentCaptured) {
+            //only report if there's a change
+            lastPercentCaptured = percent;
+            onProgress(uploadStream.uploadProgress);
+        }
     }, 1000);
     try {
         await pipelineAsync(
@@ -88,7 +93,7 @@ const fetchRawStream = async (fileUrl: string, startPosition: number) => {
     });
     if (response.status > 300) throw new Error(`Expected 200 status code but recieved ${response.status}`);
     const contentLength = parseInt(response.headers.get('content-length') || '');
-    
+
     if (startPosition > 0) {
         rangeHeader = response.headers.get('content-range');
         if (!rangeHeader) throw new Error('range header was expected!');

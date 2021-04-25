@@ -8,6 +8,7 @@ import { basename } from "path";
 const request = require("request");
 const logger = debug('UploadUtils');
 const pipelineAsync = promisify(pipeline);
+import fetch from 'node-fetch';
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl } = queuedItem;
@@ -15,12 +16,13 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
 
     let resumeFromPosition = 0;
     if (rawUpload) {
-        const byteRange = await fetchStatusOfRemoteUpload(remoteUrl);
-        resumeFromPosition = byteRange?.rangeEnd || 0;
+        const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
+        rangeEnd >= 0 && logger(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
+        resumeFromPosition = rangeEnd + 1;
     }
 
-    const { inputStream, size } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
-    const { uploadStream, promise } = prepareUploadStream(remoteUrl, resumeFromPosition, size);
+    const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
+    const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
@@ -43,7 +45,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     logger('Upload completed...');
 }
 
-const prepareUploadStream = (remoteUrl: string, start: number, contentLen: number) => {
+const prepareUploadStream = (remoteUrl: string, contentRangeHeader: string, contentLen: number) => {
     let _resolve: any;
     let _reject: any;
     const promise = new Promise((res, rej) => {
@@ -53,7 +55,7 @@ const prepareUploadStream = (remoteUrl: string, start: number, contentLen: numbe
 
     const uploadStream = got.stream.put(remoteUrl, {
         headers: {
-            'Content-Range': `bytes ${start}-${contentLen - 1}/${contentLen}`,
+            'Content-Range': contentRangeHeader,
             'Content-Length': `${contentLen}`
         }
     }).on('data', () => {
@@ -73,15 +75,30 @@ const prepareUploadStream = (remoteUrl: string, start: number, contentLen: numbe
 }
 
 const fetchRawStream = async (fileUrl: string, startPosition: number) => {
-    const { headers } = await got.head(fileUrl);
-    const contentLen = parseInt(headers['content-length'] || '');
+    let rangeHeader;
+    let headers = {};
+    if (startPosition > 0) {
+        //it's a resume upload
+        headers = {
+            Range: `bytes=${startPosition}-`
+        }
+    }
+    const response = await fetch(fileUrl, {
+        headers
+    });
+    if (response.status > 300) throw new Error(`Expected 200 status code but recieved ${response.status}`);
+    const contentLength = parseInt(response.headers.get('content-length') || '');
+    
+    if (startPosition > 0) {
+        rangeHeader = response.headers.get('content-range');
+        if (!rangeHeader) throw new Error('range header was expected!');
+    } else {
+        rangeHeader = `bytes 0-${contentLength - 1}/${contentLength}`
+    }
     return {
-        size: contentLen,
-        inputStream: got.stream(fileUrl, {
-            headers: {
-                Range: `bytes=${startPosition}-`
-            }
-        })
+        size: contentLength,
+        inputStream: response.body,
+        rangeHeader
     }
 }
 
@@ -112,31 +129,37 @@ const fetchZipStream = async (fileUrl: string, fileName: string) => {
         .pop();
 
     if (requestedFileStream) {
+        const contentLen = requestedFileStream.uncompressedSize
         return {
-            size: requestedFileStream.uncompressedSize,
-            inputStream: requestedFileStream.stream()
+            size: contentLen,
+            inputStream: requestedFileStream.stream(),
+            rangeHeader: `bytes 0-${contentLen - 1}/${contentLen}`
         }
     }
 
     throw new Error('Unable to find the matching stream!!!');
 }
 
+//returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.
 const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
-
     const resp = await got.put(remoteUrl, {
-        throwHttpErrors: false
+        throwHttpErrors: false,
+        headers: {
+            'Content-Length': '0',
+            'Content-Range': 'bytes */*'
+        }
     });
 
     if (resp.statusCode === 308) {
         const { range } = resp.headers;
+        let rangeEnd = -1;
         if (range) {
-            const byteEndRange = parseInt(range.split('-').pop() || '0');
-            return {
-                rangeEnd: byteEndRange
-            }
+            rangeEnd = parseInt(range.split('-').pop() || '-1');
+        }
+        return {
+            rangeEnd
         }
     } else {
-        return null;
+        throw new Error(`Expected 308 status code but received ${resp.statusCode}`);
     }
-    console.log(resp.headers)
 }

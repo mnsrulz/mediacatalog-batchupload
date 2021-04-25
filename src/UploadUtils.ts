@@ -24,6 +24,15 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
     const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
+    if (inputStream instanceof ReadableStream) {
+        logger('input stream is of type readable.. hooking up the event of error!');
+        inputStream.on('error', err => {
+            logger('error occurred in the readable stream. ending the upload stream.');
+            uploadStream.end();
+            logger('upload stream ended.')
+        });
+    }
+
     let lastPercentCaptured = 0;
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
@@ -41,6 +50,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         );
         logger('pipeline async completed!');
         await promise;
+        logger('upload stream promise completed!')
     } catch (error) {
         logger('error occurrerd during upload.', error);
         throw error;
@@ -91,7 +101,7 @@ const fetchRawStream = async (fileUrl: string, startPosition: number) => {
     const response = await fetch(fileUrl, {
         headers
     });
-    if (response.status > 300) throw new Error(`Expected 200 status code but recieved ${response.status}`);
+    if (!response.ok) throw new Error(`Expected 200 status code but recieved ${response.status}`);
     const contentLength = parseInt(response.headers.get('content-length') || '');
 
     if (startPosition > 0) {

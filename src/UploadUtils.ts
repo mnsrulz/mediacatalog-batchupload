@@ -30,7 +30,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         const uploadProgress = resumeFromPosition === 0 ? uploadStream.uploadProgress : {
             transferred: transferred + resumeFromPosition,
             total: total && total + resumeFromPosition,
-            percent: (transferred + resumeFromPosition) / (total || 0 + resumeFromPosition)
+            percent: (transferred + resumeFromPosition) / ((total || 0) + resumeFromPosition)
         } as UploadProgress;
         logger(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
         if (percent > lastPercentCaptured) {

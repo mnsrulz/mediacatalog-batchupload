@@ -24,22 +24,19 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
     const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
-
-    logger('hooking up the error event on input stream!');
-    inputStream.on('error', err => {
-        logger('error occurred in the readable stream. ending the upload stream.', err);
-        uploadStream.end();
-        logger('upload stream ended.')
-    });
-
     let lastPercentCaptured = 0;
     const timer = setInterval(() => {
         const { total, transferred, percent } = uploadStream.uploadProgress;
-        logger(`Progress: ### ${percent}% ### ${transferred}/${total}`);
+        const uploadProgress = resumeFromPosition === 0 ? uploadStream.uploadProgress : {
+            transferred: transferred + resumeFromPosition,
+            total: total && total + resumeFromPosition,
+            percent: (transferred + resumeFromPosition) / (total || 0 + resumeFromPosition)
+        } as UploadProgress;
+        logger(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
         if (percent > lastPercentCaptured) {
             //only report if there's a change
             lastPercentCaptured = percent;
-            onProgress(uploadStream.uploadProgress);
+            onProgress(uploadProgress);
         }
     }, 1000);
     try {
@@ -98,21 +95,19 @@ const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHea
         }
     }
     headers = Object.assign(headers, fileUrlHeaders);
-    const response = await fetch(fileUrl, {
-        headers
-    });
-    if (!response.ok) throw new Error(`Expected 200 status code but recieved ${response.status}`);
-    const contentLength = parseInt(response.headers.get('content-length') || '');
+    const gthead = await got.head(fileUrl, { headers });
+    const gtstream = got.stream(fileUrl, { headers });
 
+    const contentLength = parseInt(gthead.headers['content-length'] || '');
     if (startPosition > 0) {
-        rangeHeader = response.headers.get('content-range');
+        rangeHeader = gthead.headers['content-range'];
         if (!rangeHeader) throw new Error('range header was expected!');
     } else {
         rangeHeader = `bytes 0-${contentLength - 1}/${contentLength}`
     }
     return {
         size: contentLength,
-        inputStream: response.body,
+        inputStream: gtstream,
         rangeHeader
     }
 }

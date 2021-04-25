@@ -11,7 +11,7 @@ const pipelineAsync = promisify(pipeline);
 import fetch from 'node-fetch';
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
-    const { fileUrl, fileName, rawUpload, remoteUrl } = queuedItem;
+    const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
     logger('Initializing the upload...')
 
     let resumeFromPosition = 0;
@@ -21,13 +21,13 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         resumeFromPosition = rangeEnd + 1;
     }
 
-    const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition) : await fetchZipStream(fileUrl, fileName)
+    const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
     const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
 
 
     logger('hooking up the error event on input stream!');
     inputStream.on('error', err => {
-        logger('error occurred in the readable stream. ending the upload stream.');
+        logger('error occurred in the readable stream. ending the upload stream.', err);
         uploadStream.end();
         logger('upload stream ended.')
     });
@@ -88,7 +88,7 @@ const prepareUploadStream = (remoteUrl: string, contentRangeHeader: string, cont
     }
 }
 
-const fetchRawStream = async (fileUrl: string, startPosition: number) => {
+const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHeaders: Record<string, string>) => {
     let rangeHeader;
     let headers = {};
     if (startPosition > 0) {
@@ -97,6 +97,7 @@ const fetchRawStream = async (fileUrl: string, startPosition: number) => {
             Range: `bytes=${startPosition}-`
         }
     }
+    headers = Object.assign(headers, fileUrlHeaders);
     const response = await fetch(fileUrl, {
         headers
     });
@@ -116,7 +117,7 @@ const fetchRawStream = async (fileUrl: string, startPosition: number) => {
     }
 }
 
-const fetchZipStream = async (fileUrl: string, fileName: string) => {
+const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders: Record<string, string>) => {
     //current build doesn't support custom path. Once that release will remove the request dependency.
     // const customSource = {
     //     stream: (offset: number, length: number) => {

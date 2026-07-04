@@ -98,8 +98,9 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
         stream: (offset, length) => {
             console.log(`Streaming the zip for URL: ${fileUrl}, offset: ${offset}, len: ${length}`);
             const stream = new Stream.PassThrough();
+            const to = length > 0 ? `${offset + length - 1}` : '';
             ky(fileUrl, {
-                headers: { ...fileUrlHeaders, Range: `bytes=${offset}-${offset + length - 1}` }
+                headers: { ...fileUrlHeaders, Range: `bytes=${offset}-${to}` }
             }).then(k => Readable.fromWeb(k.body as any).pipe(stream))
             return stream;
         }

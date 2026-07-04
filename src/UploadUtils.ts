@@ -25,19 +25,19 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
     });
 
-    // Create a Web standard pass-through stream
-    const progressTracker = new Transform({
-        transform(chunk, encoding, callback) {
-            uploadedBytes += chunk.length;
-            throttleProgress();
-            // Forward the unmodified chunk down the pipe
-            this.push(chunk);
-            callback();
-        }
-    });
+    // // Create a Web standard pass-through stream
+    // const progressTracker = new Transform({
+    //     transform(chunk, encoding, callback) {
+    //         uploadedBytes += chunk.length;
+    //         throttleProgress();
+    //         // Forward the unmodified chunk down the pipe
+    //         this.push(chunk);
+    //         callback();
+    //     }
+    // });
 
-    // Intercept the stream chunks mid-flight
-    const trackedStream = inputStream.pipe(progressTracker);
+    // // Intercept the stream chunks mid-flight
+    // const trackedStream = inputStream.pipe(progressTracker);
 
     await fetch(remoteUrl, {
         method: 'PUT',
@@ -45,7 +45,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             'Content-Range': rangeHeader,
             'Content-Length': `${size}`
         },
-        body: trackedStream as unknown,
+        body: inputStream,
         duplex: 'half'
     })
 

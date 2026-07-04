@@ -17,48 +17,34 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     }
 
     //rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : 
-    const { inputStream, size, rangeHeader } = await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
+    const { fileStream, size, rangeHeader } = await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
 
     let uploadedBytes = 0;
-    const throttleProgress = throttle(300, () => {
+    const throttleProgress = throttle(1200, () => {
         const percentage = size ? Math.round((uploadedBytes / size) * 100) : null;
         console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
     });
 
-    const webStream = Readable.toWeb(inputStream);
-    const reader = webStream.getReader();
-
-    while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        uploadedBytes += value.byteLength;
-        throttleProgress();
-    }
-
-    const progressStream = new ReadableStream<Uint8Array>({
-        async pull(controller) {
-            const { done, value } = await reader.read();
-
-            if (done) {
-                console.log(`closing...`);
-                controller.close();
-                return;
-            }
-
-            uploadedBytes += value.byteLength;
-            throttleProgress();
-
-            controller.enqueue(value);
-        },
-
-        cancel(reason) {
-            return reader.cancel(reason);
-        },
+    const r = await fetch(fileUrl, {
+        headers: {
+            ...fileUrlHeaders,
+            'Range': `bytes=${fileStream.offsetToLocalFileHeader}-${fileStream.compressedSize + fileStream.offsetToLocalFileHeader - 1}`
+        }
     });
 
+    console.log(`Response headers:
+        status: ${r.status}
+        Content-Length: ${r.headers.get('Content-Length')}
+        Range: ${r.headers.get('Range')}
+        `);
 
+    const progressStream = r.body?.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+            uploadedBytes += chunk.byteLength;
+            throttleProgress();
+            controller.enqueue(chunk);
+        }
+    }))
 
     await fetch(remoteUrl, {
         method: 'PUT',
@@ -153,15 +139,22 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
         .pop();
 
     if (requestedFileStream) {
-        console.log(`Requested file stream successfully, now streaming the zip for URL: ${fileUrl}`);
+        console.log(`Requested file stream successfully, now streaming the zip for 
+            URL: ${fileUrl}
+            fileNameLength: ${requestedFileStream.fileNameLength}
+            compressedSize: ${requestedFileStream.compressedSize}
+            fileCommentLength: ${requestedFileStream.fileCommentLength}
+            offsetToLocalFileHeader: ${requestedFileStream.offsetToLocalFileHeader}
+            uncompressedSize: ${requestedFileStream.uncompressedSize}
+            compressionMethod: ${requestedFileStream.compressionMethod}
+            `);
         const contentLen = requestedFileStream.uncompressedSize
         return {
             size: contentLen,
-            inputStream: requestedFileStream.stream(),
+            fileStream: requestedFileStream,
             rangeHeader: `bytes 0-${contentLen - 1}/${contentLen}`
         }
     }
-
     throw new Error('Unable to find the matching stream!!!');
 }
 

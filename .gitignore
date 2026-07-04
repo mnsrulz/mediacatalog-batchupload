@@ -31,3 +31,4 @@ build/
 dist/
 
 .wrangler/
+worker-configuration.d.ts

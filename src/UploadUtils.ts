@@ -1,9 +1,9 @@
 import ky from "ky";
 import { throttle } from 'throttle-debounce';
-import Stream, { Readable, Transform } from 'stream';
 import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
+import Stream, { Readable } from "stream";
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
@@ -28,6 +28,15 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const webStream = Readable.toWeb(inputStream);
     const reader = webStream.getReader();
 
+    while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        uploadedBytes += value.byteLength;
+        throttleProgress();
+    }
+
     const progressStream = new ReadableStream<Uint8Array>({
         async pull(controller) {
             const { done, value } = await reader.read();
@@ -48,6 +57,8 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             return reader.cancel(reason);
         },
     });
+
+
 
     await fetch(remoteUrl, {
         method: 'PUT',

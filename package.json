@@ -12,6 +12,7 @@
 		"publish": true
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1079.0",
 		"debug": "^4.4.3",
 		"got": "^15.1.0",
 		"hono": "4.11.1",

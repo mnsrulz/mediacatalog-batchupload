@@ -1,6 +1,6 @@
-import got from "got";
+import ky from "ky";
 import { promisify } from 'util';
-import { pipeline } from 'stream';
+import Stream, { pipeline, Readable } from 'stream';
 import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
@@ -19,68 +19,48 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         resumeFromPosition = rangeEnd + 1;
     }
 
-    const { inputStream, size, rangeHeader } = rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
-    const { uploadStream, promise } = prepareUploadStream(remoteUrl, rangeHeader, size);
+    //rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : 
+    const { inputStream, size, rangeHeader } = await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
 
-    let lastPercentCaptured = 0;
-    const timer = setInterval(() => {
-        const { total, transferred, percent } = uploadStream.uploadProgress;
-        const uploadProgress = resumeFromPosition === 0 ? uploadStream.uploadProgress : {
-            transferred: transferred + resumeFromPosition,
-            total: total && total + resumeFromPosition,
-            percent: (transferred + resumeFromPosition) / ((total || 0) + resumeFromPosition)
-        } as UploadProgress;
-        logger(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
-        if (percent > lastPercentCaptured) {
-            //only report if there's a change
-            lastPercentCaptured = percent;
-            onProgress(uploadProgress);
-        }
-    }, 1000);
-    try {
-        await pipelineAsync(
-            inputStream,
-            uploadStream
-        );
-        logger('pipeline async completed!');
-        await promise;
-        logger('upload stream promise completed!')
-    } catch (error) {
-        logger('error occurrerd during upload.', error);
-        throw error;
-    } finally {
-        clearInterval(timer);
-    }
-    logger('Upload completed...');
-}
-
-const prepareUploadStream = (remoteUrl: string, contentRangeHeader: string, contentLen: number) => {
-    let _resolve: any;
-    let _reject: any;
-    const promise = new Promise((res, rej) => {
-        _resolve = res;
-        _reject = rej;
-    });
-
-    const uploadStream = got.stream.put(remoteUrl, {
+    await ky.put(remoteUrl, {
         headers: {
-            'Content-Range': contentRangeHeader,
-            'Content-Length': `${contentLen}`
-        }
-    }).on('data', () => {
-        logger('data event detected.')
-        _resolve('data event detected.');
-    }).on('end', () => {
-        logger('upload end event detected.')
-        _resolve('upload end event detected.');
-    }).on('error', (err) => {
-        logger('error found in the response of stream upload.')
-        _reject(`error found in the response of stream upload. ${err.message}`);
-    });
-    return {
-        promise,
-        uploadStream
-    }
+            'Content-Range': rangeHeader,
+            'Content-Length': `${size}`
+        },
+        body: Readable.from(inputStream) as any
+    })
+
+
+    // let lastPercentCaptured = 0;
+    // const timer = setInterval(() => {
+    //     const { total, transferred, percent } = uploadStream.uploadProgress;
+    //     const uploadProgress = resumeFromPosition === 0 ? uploadStream.uploadProgress : {
+    //         transferred: transferred + resumeFromPosition,
+    //         total: total && total + resumeFromPosition,
+    //         percent: (transferred + resumeFromPosition) / ((total || 0) + resumeFromPosition)
+    //     } as UploadProgress;
+    //     logger(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
+    //     if (percent > lastPercentCaptured) {
+    //         //only report if there's a change
+    //         lastPercentCaptured = percent;
+    //         onProgress(uploadProgress);
+    //     }
+    // }, 1000);
+    // try {
+    //     await pipelineAsync(
+    //         inputStream,
+    //         uploadStream
+    //     );
+    //     logger('pipeline async completed!');
+    //     await promise;
+    //     logger('upload stream promise completed!')
+    // } catch (error) {
+    //     logger('error occurrerd during upload.', error);
+    //     throw error;
+    // } finally {
+    //     clearInterval(timer);
+    // }
+    logger('Upload completed...');
 }
 
 const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHeaders: Record<string, string>) => {
@@ -93,19 +73,19 @@ const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHea
         }
     }
     headers = Object.assign(headers, fileUrlHeaders);
-    const gthead = await got.head(fileUrl, { headers });
-    const gtstream = got.stream(fileUrl, { headers });
+    const gthead = await ky.head(fileUrl, { headers });
+    const gtstream = await ky(fileUrl, { headers });
 
-    const contentLength = parseInt(gthead.headers['content-length'] || '');
+    const contentLength = parseInt(gthead.headers.get('content-length') || '');
     if (startPosition > 0) {
-        rangeHeader = gthead.headers['content-range'];
+        rangeHeader = gthead.headers.get('content-range');
         if (!rangeHeader) throw new Error('range header was expected!');
     } else {
         rangeHeader = `bytes 0-${contentLength - 1}/${contentLength}`
     }
     return {
         size: contentLength,
-        inputStream: gtstream,
+        inputStream: gtstream.body,
         rangeHeader
     }
 }
@@ -113,13 +93,15 @@ const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHea
 const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders: Record<string, string>) => {
     const directory = await Open.custom({
         size: async () => {
-            const { headers } = await got.head(fileUrl, { headers: fileUrlHeaders })
-            return headers['content-length'] ? parseInt(headers['content-length']) : 0;
+            const { headers } = await ky.head(fileUrl, { headers: fileUrlHeaders })
+            return parseInt(headers.get('content-length') || '0');
         },
         stream: (offset, length) => {
-            return got.stream(fileUrl, {
+            const stream = new Stream.PassThrough();
+            ky(fileUrl, {
                 headers: { ...fileUrlHeaders, Range: `bytes=${offset}-${offset + length - 1}` }
-            });
+            }).then(k => Readable.fromWeb(k.body as any).pipe(stream))
+            return stream;
         }
     })
 
@@ -141,7 +123,7 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
 
 //returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.
 const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
-    const resp = await got.put(remoteUrl, {
+    const resp = await ky.put(remoteUrl, {
         throwHttpErrors: false,
         headers: {
             'Content-Length': '0',
@@ -149,8 +131,8 @@ const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
         }
     });
 
-    if (resp.statusCode === 308) {
-        const { range } = resp.headers;
+    if (resp.status === 308) {
+        const range = resp.headers.get('range');
         let rangeEnd = -1;
         if (range) {
             rangeEnd = parseInt(range.split('-').pop() || '-1');
@@ -159,6 +141,6 @@ const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
             rangeEnd
         }
     } else {
-        throw new Error(`Expected 308 status code but received ${resp.statusCode}`);
+        throw new Error(`Expected 308 status code but received ${resp.status}`);
     }
 }

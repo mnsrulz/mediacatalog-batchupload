@@ -88,12 +88,15 @@ const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHea
 }
 
 const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders: Record<string, string>) => {
+    console.log(`Fetching zip stream for URL: ${fileUrl}`);
     const directory = await Open.custom({
         size: async () => {
+            console.log(`Fetching size of zip stream for URL: ${fileUrl}`);
             const { headers } = await ky.head(fileUrl, { headers: fileUrlHeaders })
             return parseInt(headers.get('content-length') || '0');
         },
         stream: (offset, length) => {
+            console.log(`Streaming the zip for URL: ${fileUrl}, offset: ${offset}, len: ${length}`);
             const stream = new Stream.PassThrough();
             ky(fileUrl, {
                 headers: { ...fileUrlHeaders, Range: `bytes=${offset}-${offset + length - 1}` }
@@ -101,12 +104,13 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
             return stream;
         }
     })
-
+    
     const requestedFileStream = directory.files
-        .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))
-        .pop();
-
+    .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))
+    .pop();
+    
     if (requestedFileStream) {
+        console.log(`Requested file stream successfully, now streaming the zip for URL: ${fileUrl}`);
         const contentLen = requestedFileStream.uncompressedSize
         return {
             size: contentLen,

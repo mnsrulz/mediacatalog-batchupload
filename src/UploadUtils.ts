@@ -4,14 +4,14 @@ import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
 import Stream, { Readable } from "stream";
-
+const MAX_CHUNK_SIZE = 4 * 1024 * 1024; //4MB
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
     console.log('Initializing the upload...')
 
     let resumeFromPosition = 0;
     if (rawUpload) {
-        const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
+        const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl, 0);
         rangeEnd >= 0 && console.log(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
         resumeFromPosition = rangeEnd + 1;
     }
@@ -31,67 +31,40 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         })
     });
 
+
+    const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl, size);
+    console.log(`Status of upload: ${rangeEnd}. ${rangeEnd == -1 ? '-1 indicating the upload is not yet started' : ''}`);
+
+    const { offsetToLocalFileHeader } = fileStream;
+    const zipStreamStartRange = rangeEnd + offsetToLocalFileHeader + 1;
+    const zipStreamEndRange = Math.min(fileStream.compressedSize - 1, rangeEnd + MAX_CHUNK_SIZE) + offsetToLocalFileHeader;
+
+
+    const rng = `bytes ${zipStreamStartRange - offsetToLocalFileHeader}-${zipStreamEndRange - offsetToLocalFileHeader}/${size}`;
+
     const r = await fetch(fileUrl, {
         headers: {
             ...fileUrlHeaders,
-            'Range': `bytes=${fileStream.offsetToLocalFileHeader}-${fileStream.compressedSize + fileStream.offsetToLocalFileHeader - 1}`
+            'Range': `bytes=${zipStreamStartRange}-${zipStreamEndRange}`
         }
     });
 
     console.log(`Response headers:
         status: ${r.status}
         Content-Length: ${r.headers.get('Content-Length')}
-        Range: ${r.headers.get('Range')}
+        Content-Range: ${r.headers.get('Content-Range')}
         `);
 
-    const progressStream = r.body?.pipeThrough(new TransformStream({
-        transform(chunk, controller) {
-            uploadedBytes += chunk.byteLength;
-            throttleProgress();
-            controller.enqueue(chunk);
-        }
-    }))
-
-    await fetch(remoteUrl, {
+    const putresponse = await fetch(remoteUrl, {
         method: 'PUT',
         headers: {
-            'Content-Range': rangeHeader,
+            'Content-Range': rng,
             'Content-Length': `${size}`
         },
-        body: progressStream
-    })
-
-
-    // let lastPercentCaptured = 0;
-    // const timer = setInterval(() => {
-    //     const { total, transferred, percent } = uploadStream.uploadProgress;
-    //     const uploadProgress = resumeFromPosition === 0 ? uploadStream.uploadProgress : {
-    //         transferred: transferred + resumeFromPosition,
-    //         total: total && total + resumeFromPosition,
-    //         percent: (transferred + resumeFromPosition) / ((total || 0) + resumeFromPosition)
-    //     } as UploadProgress;
-    //     console.log(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
-    //     if (percent > lastPercentCaptured) {
-    //         //only report if there's a change
-    //         lastPercentCaptured = percent;
-    //         onProgress(uploadProgress);
-    //     }
-    // }, 1000);
-    // try {
-    //     await pipelineAsync(
-    //         inputStream,
-    //         uploadStream
-    //     );
-    //     console.log('pipeline async completed!');
-    //     await promise;
-    //     console.log('upload stream promise completed!')
-    // } catch (error) {
-    //     console.log('error occurrerd during upload.', error);
-    //     throw error;
-    // } finally {
-    //     clearInterval(timer);
-    // }
-    console.log('Upload completed...');
+        body: r.body
+    });
+    const output = await putresponse.text();
+    console.log(`Upload completed with ${putresponse.status} | ${output}...`);
 }
 
 const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHeaders: Record<string, string>) => {
@@ -165,12 +138,13 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
 }
 
 //returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.
-const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
-    const resp = await ky.put(remoteUrl, {
-        throwHttpErrors: false,
+const fetchStatusOfRemoteUpload = async (remoteUrl: string, size: number) => {
+    console.log(`Checking remote upload status: ${remoteUrl} with size: ${size}`);
+    const resp = await fetch(remoteUrl, {
+        method: 'PUT',
         headers: {
             'Content-Length': '0',
-            'Content-Range': 'bytes */*'
+            'Content-Range': `bytes */${size}`
         }
     });
 
@@ -184,6 +158,6 @@ const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
             rangeEnd
         }
     } else {
-        throw new Error(`Expected 308 status code but received ${resp.status}`);
+        throw new Error(`Expected 308 status code but received ${resp.status}, ${await resp.text()}`);
     }
 }

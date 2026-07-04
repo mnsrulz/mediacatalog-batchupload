@@ -2,9 +2,6 @@ import { AuthenticatedApiClient } from "./AuthenticatedApiClient";
 import { RequestItemResponse, UploadProgress } from "./Models";
 import { handleUploadProgress, handleError } from "./RemoteUploadApiMethods";
 import { uploadAsync } from "./UploadUtils";
-import debug from 'debug';
-
-const logger = debug('BatchUploadRequestProcessor');
 
 export const processItem = async (queuedItem: RequestItemResponse) => {
     try {
@@ -15,7 +12,7 @@ export const processItem = async (queuedItem: RequestItemResponse) => {
         await uploadAsync(queuedItem, progressReporter);
         await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/complete`);
     } catch (error) {
-        logger(error);
+        console.error(error);
         handleError(queuedItem, error);
     }
 }

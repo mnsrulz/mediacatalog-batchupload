@@ -4,18 +4,15 @@ import Stream, { pipeline, Readable } from 'stream';
 import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
-import debug from 'debug';
-const logger = debug('UploadUtils');
-const pipelineAsync = promisify(pipeline);
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
-    logger('Initializing the upload...')
+    console.log('Initializing the upload...')
 
     let resumeFromPosition = 0;
     if (rawUpload) {
         const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
-        rangeEnd >= 0 && logger(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
+        rangeEnd >= 0 && console.log(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
         resumeFromPosition = rangeEnd + 1;
     }
 
@@ -39,7 +36,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     //         total: total && total + resumeFromPosition,
     //         percent: (transferred + resumeFromPosition) / ((total || 0) + resumeFromPosition)
     //     } as UploadProgress;
-    //     logger(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
+    //     console.log(`Progress: ### ${uploadProgress.percent}% ### ${uploadProgress.transferred}/${uploadProgress.total}`);
     //     if (percent > lastPercentCaptured) {
     //         //only report if there's a change
     //         lastPercentCaptured = percent;
@@ -51,16 +48,16 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     //         inputStream,
     //         uploadStream
     //     );
-    //     logger('pipeline async completed!');
+    //     console.log('pipeline async completed!');
     //     await promise;
-    //     logger('upload stream promise completed!')
+    //     console.log('upload stream promise completed!')
     // } catch (error) {
-    //     logger('error occurrerd during upload.', error);
+    //     console.log('error occurrerd during upload.', error);
     //     throw error;
     // } finally {
     //     clearInterval(timer);
     // }
-    logger('Upload completed...');
+    console.log('Upload completed...');
 }
 
 const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHeaders: Record<string, string>) => {

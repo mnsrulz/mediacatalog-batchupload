@@ -33,6 +33,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             const { done, value } = await reader.read();
 
             if (done) {
+                console.log(`closing...`);
                 controller.close();
                 return;
             }
@@ -54,8 +55,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             'Content-Range': rangeHeader,
             'Content-Length': `${size}`
         },
-        body: progressStream,
-        duplex: 'half'
+        body: progressStream
     })
 
 

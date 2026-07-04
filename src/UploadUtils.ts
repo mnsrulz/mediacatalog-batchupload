@@ -1,6 +1,6 @@
 import ky from "ky";
-import { promisify } from 'util';
-import Stream, { pipeline, Readable } from 'stream';
+import { throttle } from 'throttle-debounce';
+import Stream, { Readable, Transform } from 'stream';
 import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
@@ -19,12 +19,34 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     //rawUpload ? await fetchRawStream(fileUrl, resumeFromPosition, fileUrlHeaders) : 
     const { inputStream, size, rangeHeader } = await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
 
-    await ky.put(remoteUrl, {
+    let uploadedBytes = 0;
+    const throttleProgress = throttle(300, () => {
+        const percentage = size ? Math.round((uploadedBytes / size) * 100) : null;
+        console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
+    });
+
+    // Create a Web standard pass-through stream
+    const progressTracker = new Transform({
+        transform(chunk, encoding, callback) {
+            uploadedBytes += chunk.length;
+            throttleProgress();
+            // Forward the unmodified chunk down the pipe
+            this.push(chunk);
+            callback();
+        }
+    });
+
+    // Intercept the stream chunks mid-flight
+    const trackedStream = inputStream.pipe(progressTracker);
+
+    await fetch(remoteUrl, {
+        method: 'PUT',
         headers: {
             'Content-Range': rangeHeader,
             'Content-Length': `${size}`
         },
-        body: Readable.from(inputStream) as any
+        body: trackedStream as unknown,
+        duplex: 'half'
     })
 
 
@@ -105,11 +127,11 @@ const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders:
             return stream;
         }
     })
-    
+
     const requestedFileStream = directory.files
-    .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))
-    .pop();
-    
+        .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))
+        .pop();
+
     if (requestedFileStream) {
         console.log(`Requested file stream successfully, now streaming the zip for URL: ${fileUrl}`);
         const contentLen = requestedFileStream.uncompressedSize

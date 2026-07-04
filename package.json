@@ -16,12 +16,14 @@
 		"debug": "^4.4.3",
 		"hono": "4.11.1",
 		"ky": "^2.0.2",
+		"throttle-debounce": "^5.0.2",
 		"unzipper": "^0.12.5"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20260702.1",
 		"@types/debug": "^4.1.13",
 		"@types/node": "24.10.1",
+		"@types/throttle-debounce": "^5.0.2",
 		"@types/unzipper": "^0.10.11",
 		"typescript": "5.9.3",
 		"wrangler": "4.88.0"

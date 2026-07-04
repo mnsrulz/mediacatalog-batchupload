@@ -34,13 +34,14 @@ app.get('/', (c) => {
 app.post('/batchupload', async (c) => {
 	const json = await c.req.json<RequestItemResponse | RequestItemResponse[]>();
 	if (Array.isArray(json)) {
-		c.env.BATCHUPLOADQUEUE.sendBatch(json.map((item) => ({
+		await c.env.BATCHUPLOADQUEUE.sendBatch(json.map((item) => ({
 			body: item
 		})));
 	} else {
-		c.env.BATCHUPLOADQUEUE.send(json);
+		await c.env.BATCHUPLOADQUEUE.send(json);
 	}
 
+	return c.json({ message: 'Batch upload request received' });
 });
 
 // Export the Hono app

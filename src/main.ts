@@ -29,7 +29,7 @@ app.onError((err, c) => {
 
 app.use('/api/*', apiKeyAuth(process.env.API_KEY!))
 app.get('/', (c) => {
-	return c.json({ message: 'Hello, World from cf!' });
+	return c.json({ message: 'Hello, World from cf!!' });
 })
 
 app.post('/batchupload', async (c) => {

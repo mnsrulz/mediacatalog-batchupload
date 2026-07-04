@@ -1,9 +1,12 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "compatibility_date": "2026-05-11",
   "main": "src/main.ts",
   "name": "mediacatalog-batchupload",
   "upload_source_maps": true,
-
+  "vars": {
+    "API_BASE_URL": "https://mediacatalog.netlify.app/api/"
+  },
   "observability": {
     "enabled": true
   },

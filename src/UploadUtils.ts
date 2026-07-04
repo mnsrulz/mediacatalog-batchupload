@@ -2,13 +2,11 @@ import got from "got";
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 import { RequestItemResponse, UploadProgress } from "./Models";
-import debug from 'debug';
 import { Open } from 'unzipper';
 import { basename } from "path";
-const request = require("request");
+import debug from 'debug';
 const logger = debug('UploadUtils');
 const pipelineAsync = promisify(pipeline);
-import fetch from 'node-fetch';
 
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
@@ -113,26 +111,17 @@ const fetchRawStream = async (fileUrl: string, startPosition: number, fileUrlHea
 }
 
 const fetchZipStream = async (fileUrl: string, fileName: string, fileUrlHeaders: Record<string, string>) => {
-    //current build doesn't support custom path. Once that release will remove the request dependency.
-    // const customSource = {
-    //     stream: (offset: number, length: number) => {
-    //         return got.stream(fileUrl, {
-    //             headers: {
-    //                 'Range': `bytes=${offset}-${offset + length}`
-    //             }
-    //         });
-    //     },
-    //     size: async () => {
-    //         const { headers } = await got.head(fileUrl);
-    //         const contentLen = parseInt(headers['content-length'] || '');
-    //         return contentLen;  //fallback to other method if needed            
-    //     }
-    // };
-
-    const directory = await Open.url(request, fileUrl);
-    // const directory = await unzipper.Open.url('', {
-
-    // })
+    const directory = await Open.custom({
+        size: async () => {
+            const { headers } = await got.head(fileUrl, { headers: fileUrlHeaders })
+            return headers['content-length'] ? parseInt(headers['content-length']) : 0;
+        },
+        stream: (offset, length) => {
+            return got.stream(fileUrl, {
+                headers: { ...fileUrlHeaders, Range: `bytes=${offset}-${offset + length - 1}` }
+            });
+        }
+    })
 
     const requestedFileStream = directory.files
         .filter((x: any) => x.type == "File" && basename(x.path) === basename(fileName))

@@ -12,11 +12,16 @@
 		"publish": true
 	},
 	"dependencies": {
-		"hono": "4.11.1"
+		"debug": "^4.4.3",
+		"got": "^15.1.0",
+		"hono": "4.11.1",
+		"unzipper": "^0.12.5"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20260702.1",
+		"@types/debug": "^4.1.13",
 		"@types/node": "24.10.1",
+		"@types/unzipper": "^0.10.11",
 		"typescript": "5.9.3",
 		"wrangler": "4.88.0"
 	},

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { RequestItemResponse } from "./Models";
+import { processItem } from "./BatchUploadRequestProcessor";
 type Env = {
 	BATCHUPLOADQUEUE: Queue;
 };
@@ -52,8 +53,7 @@ export default {
 		for (const message of batch.messages) {
 			try {
 				console.log(`Processing message with ID: ${JSON.stringify(message.body)}`);
-				// Here you can call your processing function for each message
-				// For example, you might want to call a function like processItem(message.body)
+				await processItem(message.body);
 			} catch (error) {
 				console.error(`Error processing message with ID: ${JSON.stringify(message.body)}`, error);
 				// Optionally, you can choose to rethrow the error to let the queue handle retries

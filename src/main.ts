@@ -1,6 +1,18 @@
 import { Hono } from "hono";
+import { RequestItemResponse } from "./Models";
+type Env = {
+	BATCHUPLOADQUEUE: Queue;
+};
+
 // Start a Hono app
-const app = new Hono();
+const app = new Hono<{ Bindings: Env }>();
+
+const apiKeyAuth = (key: string) => async (c: any, next: any) => {
+  if (c.req.header('x-api-key') !== key) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+  await next()
+}
 
 app.onError((err, c) => {
 	console.error("Global error handler caught:", err); // Log the error if it's not known
@@ -14,9 +26,39 @@ app.onError((err, c) => {
 	);
 });
 
+app.use('/api/*', apiKeyAuth(process.env.API_KEY!))
 app.get('/', (c) => {
 	return c.json({ message: 'Hello, World from cf!!!' });
 })
 
+app.post('/batchupload', async (c) => {
+	const json = await c.req.json<RequestItemResponse | RequestItemResponse[]>();
+	if (Array.isArray(json)) {
+		c.env.BATCHUPLOADQUEUE.sendBatch(json.map((item) => ({
+			body: item
+		})));
+	} else {
+		c.env.BATCHUPLOADQUEUE.send(json);
+	}
+
+});
+
 // Export the Hono app
-export default app;
+export default {
+	fetch: app.fetch,
+	async queue(batch: MessageBatch<RequestItemResponse>, env: Env, ctx: ExecutionContext) {
+		console.log(`Received a batch of ${batch.messages.length} messages`);
+		for (const message of batch.messages) {
+			try {
+				console.log(`Processing message with ID: ${JSON.stringify(message.body)}`);
+				// Here you can call your processing function for each message
+				// For example, you might want to call a function like processItem(message.body)
+			} catch (error) {
+				console.error(`Error processing message with ID: ${JSON.stringify(message.body)}`, error);
+				// Optionally, you can choose to rethrow the error to let the queue handle retries
+				throw error;
+			}
+		}
+	}
+};
+

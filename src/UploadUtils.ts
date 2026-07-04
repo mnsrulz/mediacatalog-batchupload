@@ -4,7 +4,7 @@ import { RequestItemResponse, UploadProgress } from "./Models";
 import { Open } from 'unzipper';
 import { basename } from "path";
 import Stream, { Readable } from "stream";
-const MAX_CHUNK_SIZE = 4 * 1024 * 1024; //4MB
+const MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 1024; //4GB
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
     console.log('Initializing the upload...')
@@ -35,6 +35,8 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl, size);
     console.log(`Status of upload: ${rangeEnd}. ${rangeEnd == -1 ? '-1 indicating the upload is not yet started' : ''}`);
 
+    uploadedBytes = rangeEnd + 1;
+
     const { offsetToLocalFileHeader } = fileStream;
     const zipStreamStartRange = rangeEnd + offsetToLocalFileHeader + 1;
     const zipStreamEndRange = Math.min(fileStream.compressedSize - 1, rangeEnd + MAX_CHUNK_SIZE) + offsetToLocalFileHeader;
@@ -49,6 +51,14 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         }
     });
 
+    const progressStream = r.body?.pipeThrough(new TransformStream({
+        transform(chunk, ctrl) {
+            uploadedBytes += chunk.byteLength;
+            throttleProgress();
+            ctrl.enqueue(chunk);
+        }
+    }))
+
     console.log(`Response headers:
         status: ${r.status}
         Content-Length: ${r.headers.get('Content-Length')}
@@ -61,7 +71,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             'Content-Range': rng,
             'Content-Length': `${size}`
         },
-        body: r.body
+        body: progressStream
     });
     const output = await putresponse.text();
     console.log(`Upload completed with ${putresponse.status} | ${output}...`);

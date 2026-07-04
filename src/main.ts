@@ -1,30 +1,22 @@
-import {startProcessing, signal} from "./BatchUploadRequestProcessor";
+import { Hono } from "hono";
+// Start a Hono app
+const app = new Hono();
 
-import express from 'express';
-const app = express();
-const port = process.env.PORT || 3000;
+app.onError((err, c) => {
+	console.error("Global error handler caught:", err); // Log the error if it's not known
 
-(async () => {
-  try {
-    await startProcessing();
-  } catch (error) {
-    console.log(error);
-  }
-})();
+	return c.json(
+		{
+			success: false,
+			errors: [{ code: 7000, message: "Internal Server Error" }],
+		},
+		500,
+	);
+});
 
-app.get('/process', (req, res) => {
-  res.send('we are on it...');
+app.get('/', (c) => {
+	return c.json({ message: 'Hello, World from cf!!!' });
 })
 
-app.get('/trigger', (req, res) => {
-  signal();
-  res.send('Ack!!!');
-})
-
-app.get('*', (req, res) => {
-  res.send('welcome!!!');
-})
-
-app.listen(port, () => {
-  console.log(`App is listening on ${port}`);
-})
+// Export the Hono app
+export default app;

@@ -1,0 +1,12 @@
+{
+	"compatibility_date": "2026-05-11",
+	"main": "src/main.ts",
+	"name": "mediacatalog-batchupload",
+	"upload_source_maps": true,
+	"observability": {
+		"enabled": true
+	},
+	"compatibility_flags": [
+		"nodejs_compat"
+	]
+}

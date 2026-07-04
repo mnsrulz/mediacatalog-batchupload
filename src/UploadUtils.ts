@@ -20,9 +20,15 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const { fileStream, size, rangeHeader } = await fetchZipStream(fileUrl, fileName, fileUrlHeaders)
 
     let uploadedBytes = 0;
-    const throttleProgress = throttle(1200, () => {
-        const percentage = size ? Math.round((uploadedBytes / size) * 100) : null;
+    const throttleProgress = throttle(300, () => {
+        const percentage = Math.round((uploadedBytes / size) * 100);
         console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
+
+        onProgress({
+            percent: percentage,
+            transferred: uploadedBytes,
+            total: size
+        })
     });
 
     const r = await fetch(fileUrl, {

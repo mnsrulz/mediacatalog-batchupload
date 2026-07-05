@@ -12,18 +12,13 @@
 		"publish": true
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.1079.0",
-		"debug": "^4.4.3",
 		"hono": "4.11.1",
 		"ky": "^2.0.2",
-		"throttle-debounce": "^5.0.2",
-		"unzipper": "^0.12.5"
+		"throttle-debounce": "^5.0.2"
 	},
 	"devDependencies": {
-		"@types/debug": "^4.1.13",
-		"@types/node": "24.10.1",
+		"@types/node": "^26.1.0",
 		"@types/throttle-debounce": "^5.0.2",
-		"@types/unzipper": "^0.10.11",
 		"typescript": "5.9.3",
 		"wrangler": "4.88.0"
 	},

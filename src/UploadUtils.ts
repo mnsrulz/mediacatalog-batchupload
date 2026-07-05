@@ -38,13 +38,13 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     if (!contentRangeHeader) throw new Error('Content Range header must be present from the upstream url');
     if (!size || size <= 0) throw new Error('Size must be defined');
 
-    const progressStream = r.body?.pipeThrough(new TransformStream({
-        transform(chunk, ctrl) {
-            uploadedBytes += chunk.byteLength;
-            throttleProgress();
-            ctrl.enqueue(chunk);
-        }
-    }))
+    // const progressStream = r.body?.pipeThrough(new TransformStream({
+    //     transform(chunk, ctrl) {
+    //         uploadedBytes += chunk.byteLength;
+    //         throttleProgress();
+    //         ctrl.enqueue(chunk);
+    //     }
+    // }))
 
     console.log(`Response headers:
         status: ${r.status}
@@ -58,7 +58,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             'Content-Range': contentRangeHeader || '',
             'Content-Length': `${size}`
         },
-        body: progressStream
+        body: r.body
     });
     const output = await putresponse.text();
     console.log(`Upload completed with ${putresponse.status} | ${output}...`);

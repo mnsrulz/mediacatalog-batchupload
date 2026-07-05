@@ -33,9 +33,11 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     });
 
     const contentRangeHeader = r.headers.get('Content-Range');  //Content-Range: bytes 0-423483202/423483203
+    const contentLengthHeader = r.headers.get('Content-Length');
     size = parseInt(r.headers.get('Content-Range')?.split('/').pop() || '0');
 
     if (!contentRangeHeader) throw new Error('Content Range header must be present from the upstream url');
+    if (!contentLengthHeader) throw new Error('Content Length header must be present from the upstream url');
     if (!size || size <= 0) throw new Error('Size must be defined');
 
     // const progressStream = r.body?.pipeThrough(new TransformStream({
@@ -55,10 +57,12 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     const putresponse = await fetch(remoteUrl, {
         method: 'PUT',
         headers: {
-            'Content-Range': contentRangeHeader || '',
-            'Content-Length': `${size}`
+            'Content-Range': contentRangeHeader,
+            'Content-Length': contentLengthHeader
         },
-        body: r.body
+        body: r.body,
+        // @ts-ignore - 'duplex' is required by standard web fetch for streaming bodies
+        duplex: 'half'
     });
     const output = await putresponse.text();
     console.log(`Upload completed with ${putresponse.status} | ${output}...`);

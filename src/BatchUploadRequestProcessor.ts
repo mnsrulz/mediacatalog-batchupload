@@ -8,7 +8,10 @@ export const processItem = async (queuedItem: RequestItemResponse) => {
         // const progressReporter = (prog: UploadProgress) => {
         //     handleUploadProgress(queuedItem, prog);
         // };
-        await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
+
+        if (!queuedItem.started) {    //only report start when it's not started
+            await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
+        }
         const result = await uploadAsync(queuedItem);
         if (result) { //completed?
             await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/complete`);

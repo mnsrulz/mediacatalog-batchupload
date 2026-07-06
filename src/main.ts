@@ -61,6 +61,7 @@ export default {
 				message.ack();
 				if (!result) {	//there is more to upload
 					console.log(`Requeuing the message for pending upload.`)
+					message.body.started = true;
 					await env.BATCHUPLOADQUEUE.send(message.body);
 				}
 			} catch (error) {

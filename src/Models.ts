@@ -8,7 +8,8 @@ export interface RequestItemResponse {
     remoteUrl: string,
     rawUpload: boolean,
     fileName: string,
-    fileUrlHeaders: Record<string, string>
+    fileUrlHeaders: Record<string, string>,
+    started: boolean
 }
 
 export interface UploadProgress {

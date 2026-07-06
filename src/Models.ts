@@ -3,6 +3,7 @@ export interface RequestItemResponse {
     id: string,
     requestId: string,
     fileUrl: string,
+    fileSize: number,
     parentUrl: string,
     remoteUrl: string,
     rawUpload: boolean,

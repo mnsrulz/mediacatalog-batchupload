@@ -57,10 +57,14 @@ export default {
 		console.log(`Received a batch of ${batch.messages.length} messages`);
 		for (const message of batch.messages) {
 			try {
+				const result = await processItem(message.body);
 				message.ack();
-				await processItem(message.body);
+				if (!result) {	//there is more to upload
+					console.log(`Requeuing the message for pending upload.`)
+					await env.BATCHUPLOADQUEUE.send(message);
+				}
 			} catch (error) {
-				message.retry(); 
+				message.retry();
 			}
 		}
 	}

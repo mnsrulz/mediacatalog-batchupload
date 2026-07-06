@@ -1,10 +1,10 @@
 import { throttle } from 'throttle-debounce';
 import { RequestItemResponse, UploadProgress } from "./Models";
-const MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 1024; //4GB
+const MAX_CHUNK_SIZE = 16 * 1024 * 1024; //16MB
 export const uploadAsync = async (queuedItem: RequestItemResponse
     // , onProgress: (prog: UploadProgress) => any
 ) => {
-    const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
+    const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders, fileSize } = queuedItem;
     console.log('Initializing the upload...')
     let uploadedBytes = 0, size = 0, resumeFromPosition = 0;
     if (rawUpload) {
@@ -27,10 +27,12 @@ export const uploadAsync = async (queuedItem: RequestItemResponse
         // })
     });
 
+    const endPosition = Math.min(fileSize, resumeFromPosition + MAX_CHUNK_SIZE);
+    const isLastRequest = endPosition == fileSize;
     const r = await fetch(fileUrl, {
         headers: {
             ...fileUrlHeaders,
-            'Range': `bytes=${resumeFromPosition}-`
+            'Range': `bytes=${resumeFromPosition}-${endPosition - 1}`
         }
     });
 
@@ -91,8 +93,9 @@ export const uploadAsync = async (queuedItem: RequestItemResponse
         duplex: 'half'
     });
     const output = await putresponse.json();
-    console.log(`Upload completed with ${putresponse.status} | ${output}...`);
-    // clearInterval(i);
+    console.log(`Upload chunk with size ${contentLengthHeader} bytes completed with ${putresponse.status} | ${output}...`);
+
+    return isLastRequest;
 }
 
 //returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.

@@ -1,6 +1,6 @@
 import { throttle } from 'throttle-debounce';
 import { RequestItemResponse, UploadProgress } from "./Models";
-const MAX_CHUNK_SIZE = 16 * 1024 * 1024; //16MB
+const MAX_CHUNK_SIZE = 64 * 1024 * 1024; //64MB
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any
 ) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders, fileSize } = queuedItem;

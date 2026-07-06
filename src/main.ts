@@ -58,9 +58,8 @@ export default {
 		for (const message of batch.messages) {
 			try {
 				console.log(`Processing message with ID: ${JSON.stringify(message.body)}`);
-				await processItem(message.body);
-
 				message.ack();
+				await processItem(message.body);
 			} catch (error) {
 				console.error(`Error processing message with ID: ${JSON.stringify(message.body)}`, error);
 				// Optionally, you can choose to rethrow the error to let the queue handle retries

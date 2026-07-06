@@ -65,11 +65,11 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
             if (r.body) {
                 for await (const chunk of r.body) {
                     controller.enqueue(chunk);
-                    uploadedBytes += chunk.byteLength;
-                    console.log(`Uploaded ${uploadedBytes}....`);
+                    //uploadedBytes += chunk.byteLength;
+                    //console.log(`Uploaded ${uploadedBytes}....`);
                 }
             }
-        },
+        }
     })
 
     console.log(`Response headers:

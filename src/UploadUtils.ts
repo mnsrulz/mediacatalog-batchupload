@@ -40,16 +40,16 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     if (!contentLengthHeader) throw new Error('Content Length header must be present from the upstream url');
     if (!size || size <= 0) throw new Error('Size must be defined');
 
-    const i = setInterval(() => {
-        const percentage = Math.round((uploadedBytes / size) * 100);
-        console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
+    // const i = setInterval(() => {
+    //     const percentage = Math.round((uploadedBytes / size) * 100);
+    //     console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
 
-        onProgress({
-            percent: percentage,
-            transferred: uploadedBytes,
-            total: size
-        })
-    }, 1000);
+    //     onProgress({
+    //         percent: percentage,
+    //         transferred: uploadedBytes,
+    //         total: size
+    //     })
+    // }, 1000);
 
     // const progressStream = r.body?.pipeThrough(new TransformStream({
     //     transform(chunk, ctrl) {
@@ -61,10 +61,12 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
 
     const progressStream = new ReadableStream({
         async start(controller) {
+            console.log(`Starting the stream...`);
             if (r.body) {
                 for await (const chunk of r.body) {
                     controller.enqueue(chunk);
                     uploadedBytes += chunk.byteLength;
+                    console.log(`Uploaded ${uploadedBytes}....`);
                 }
             }
         },
@@ -86,9 +88,9 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         // @ts-ignore - 'duplex' is required by standard web fetch for streaming bodies
         duplex: 'half'
     });
-    const output = await putresponse.text();
+    const output = await putresponse.json();
     console.log(`Upload completed with ${putresponse.status} | ${output}...`);
-    clearInterval(i);
+    // clearInterval(i);
 }
 
 //returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.

@@ -19,7 +19,13 @@
     ],
     "consumers": [
       {
-        "queue": "mediacatalog-batchupload-queue"
+        "queue": "mediacatalog-batchupload-queue",
+        "max_batch_size": 1,
+        "max_concurrency": 1,
+        "max_retries": 10,
+        "max_batch_timeout": 60,
+        "retry_delay": 5,
+        "visibility_timeout_ms": 60000
       }
     ]
   }

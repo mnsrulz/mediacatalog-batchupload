@@ -63,18 +63,22 @@ export const uploadAsync = async (queuedItem: RequestItemResponse
     //     }
     // }))
 
-    const progressStream = new ReadableStream({
-        async start(controller) {
-            console.log(`Starting the stream...`);
-            if (r.body) {
-                for await (const chunk of r.body) {
-                    controller.enqueue(chunk);
-                    //uploadedBytes += chunk.byteLength;
-                    //console.log(`Uploaded ${uploadedBytes}....`);
-                }
-            }
-        }
-    })
+    const buf = await r.arrayBuffer();
+
+    console.log(`Finished reading the buffer in memory.`);
+
+    // const progressStream = new ReadableStream({
+    //     async start(controller) {
+    //         console.log(`Starting the stream...`);
+    //         if (r.body) {
+    //             for await (const chunk of r.body) {
+    //                 controller.enqueue(chunk);
+    //                 //uploadedBytes += chunk.byteLength;
+    //                 //console.log(`Uploaded ${uploadedBytes}....`);
+    //             }
+    //         }
+    //     }
+    // })
 
     // console.log(`Response headers:
     //     status: ${r.status}
@@ -88,9 +92,7 @@ export const uploadAsync = async (queuedItem: RequestItemResponse
             'Content-Range': contentRangeHeader,
             'Content-Length': contentLengthHeader
         },
-        body: progressStream,
-        // @ts-ignore - 'duplex' is required by standard web fetch for streaming bodies
-        duplex: 'half'
+        body: buf
     });
     const output = await putresponse.json();
     console.log(`Upload chunk with size ${contentLengthHeader} bytes completed with ${putresponse.status} | ${output}...`);

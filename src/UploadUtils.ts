@@ -1,8 +1,7 @@
 import { throttle } from 'throttle-debounce';
 import { RequestItemResponse, UploadProgress } from "./Models";
 const MAX_CHUNK_SIZE = 16 * 1024 * 1024; //16MB
-export const uploadAsync = async (queuedItem: RequestItemResponse
-    // , onProgress: (prog: UploadProgress) => any
+export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any
 ) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders, fileSize } = queuedItem;
     console.log('Initializing the upload...')
@@ -96,6 +95,14 @@ export const uploadAsync = async (queuedItem: RequestItemResponse
     });
     const output = await putresponse.json();
     console.log(`Upload chunk with size ${contentLengthHeader} bytes completed with ${putresponse.status} | ${output}...`);
+
+    const percentage = Math.round((uploadedBytes / size) * 100);
+
+    await onProgress({
+        percent: percentage,
+        transferred: uploadedBytes,
+        total: size
+    });
 
     return isLastRequest;
 }

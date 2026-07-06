@@ -1,13 +1,15 @@
 import { throttle } from 'throttle-debounce';
 import { RequestItemResponse, UploadProgress } from "./Models";
 const MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 1024; //4GB
-export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any) => {
+export const uploadAsync = async (queuedItem: RequestItemResponse
+    // , onProgress: (prog: UploadProgress) => any
+) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders } = queuedItem;
     console.log('Initializing the upload...')
     let uploadedBytes = 0, size = 0, resumeFromPosition = 0;
     if (rawUpload) {
         const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
-        rangeEnd >= 0 && console.log(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
+        //rangeEnd >= 0 && console.log(`RawUploadMode on! Will resume from position ${rangeEnd}`); //if we get something gte 0 then it's a resume upload!
         resumeFromPosition = rangeEnd + 1;
         uploadedBytes = rangeEnd + 1;
     } else {
@@ -18,11 +20,11 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         const percentage = Math.round((uploadedBytes / size) * 100);
         console.log(`Piping file: ${uploadedBytes} bytes (${percentage ?? 'unknown'}%)`);
 
-        onProgress({
-            percent: percentage,
-            transferred: uploadedBytes,
-            total: size
-        })
+        // onProgress({
+        //     percent: percentage,
+        //     transferred: uploadedBytes,
+        //     total: size
+        // })
     });
 
     const r = await fetch(fileUrl, {
@@ -72,11 +74,11 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         }
     })
 
-    console.log(`Response headers:
-        status: ${r.status}
-        Content-Length: ${r.headers.get('Content-Length')}
-        Content-Range: ${r.headers.get('Content-Range')}
-        `);
+    // console.log(`Response headers:
+    //     status: ${r.status}
+    //     Content-Length: ${r.headers.get('Content-Length')}
+    //     Content-Range: ${r.headers.get('Content-Range')}
+    //     `);
 
     const putresponse = await fetch(remoteUrl, {
         method: 'PUT',

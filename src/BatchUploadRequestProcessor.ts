@@ -5,11 +5,11 @@ import { uploadAsync } from "./UploadUtils";
 
 export const processItem = async (queuedItem: RequestItemResponse) => {
     try {
-        const progressReporter = (prog: UploadProgress) => {
-            handleUploadProgress(queuedItem, prog);
-        };
-        await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
-        await uploadAsync(queuedItem, progressReporter);
+        // const progressReporter = (prog: UploadProgress) => {
+        //     handleUploadProgress(queuedItem, prog);
+        // };
+        //await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/start`);
+        await uploadAsync(queuedItem);
         await AuthenticatedApiClient.post(`remoteUrlUploadRequest/${queuedItem.id}/complete`);
     } catch (error) {
         console.error(error);

@@ -51,13 +51,24 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
         })
     }, 1000);
 
-    const progressStream = r.body?.pipeThrough(new TransformStream({
-        transform(chunk, ctrl) {
-            uploadedBytes += chunk.byteLength;
-            //throttleProgress();
-            ctrl.enqueue(chunk);
-        }
-    }))
+    // const progressStream = r.body?.pipeThrough(new TransformStream({
+    //     transform(chunk, ctrl) {
+    //         uploadedBytes += chunk.byteLength;
+    //         //throttleProgress();
+    //         ctrl.enqueue(chunk);
+    //     }
+    // }))
+
+    const progressStream = new ReadableStream({
+        async start(controller) {
+            if (r.body) {
+                for await (const chunk of r.body) {
+                    controller.enqueue(chunk);
+                    uploadedBytes += chunk.byteLength;
+                }
+            }
+        },
+    })
 
     console.log(`Response headers:
         status: ${r.status}

@@ -1,5 +1,7 @@
 import { throttle } from 'throttle-debounce';
 import { RequestItemResponse, UploadProgress } from "./Models";
+import { env } from "cloudflare:workers";
+
 const MAX_CHUNK_SIZE = 64 * 1024 * 1024; //64MB
 export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any
 ) => {
@@ -129,7 +131,7 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
                 const sh = fileUrlHeaders || {};
                 sh['Range'] = `bytes=${resumeFromPosition}-${fileSize - 1}`;
 
-                const utoCall = new URL('https://streampipe.mztrading.workers.dev');
+                const utoCall = new URL(env.STREAM_PIPER_URL);
                 utoCall.searchParams.append('s', fileUrl);
                 utoCall.searchParams.append('t', remoteUrl);
 

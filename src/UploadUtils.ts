@@ -116,6 +116,7 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
     let uploadedBytes = 0, resumeFromPosition = 0;
     if (rawUpload) {
         while (true) {
+            let i = 0;
             try {
                 const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
                 resumeFromPosition = rangeEnd + 1;
@@ -140,10 +141,20 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
                 })
 
                 console.log(`issuing the fetch request to ${utoCall}`);
+                i = setInterval(async () => {
+                    const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
+                    await onProgress({
+                        percent: Math.round((uploadedBytes / fileSize) * 100),
+                        transferred: rangeEnd + 1,
+                        total: fileSize
+                    })
+                }, 1000);
                 const resp = await fetch(utoCall);
                 console.log(`${resp.status} - Response: ${await resp.text()}`);
             } catch (e) {
                 console.error(`Re issuing the request after encoutering the error, ${e}`);
+            } finally {
+                clearInterval(i);
             }
             return true;
         }

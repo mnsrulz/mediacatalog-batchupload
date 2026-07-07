@@ -137,7 +137,7 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
                     utoCall.searchParams.append('sh', `${k}:${sh[k]}`);
                 })
 
-                console.log(`issuing the fetch request`);
+                console.log(`issuing the fetch request to ${utoCall}`);
                 const resp = await fetch(utoCall);
                 console.log(`${resp.status} - Response: ${await resp.text()}`);
             } catch (e) {

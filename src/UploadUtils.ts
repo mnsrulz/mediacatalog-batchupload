@@ -111,7 +111,7 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
 ) => {
     const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders, fileSize } = queuedItem;
     console.log('Initializing the upload...')
-    let uploadedBytes = 0, size = 0, resumeFromPosition = 0;
+    let uploadedBytes = 0, resumeFromPosition = 0;
     if (rawUpload) {
         while (true) {
             try {
@@ -120,14 +120,14 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
                 uploadedBytes = rangeEnd + 1;
 
                 // optimize it later
-                const percentage = Math.round((uploadedBytes / size) * 100);
+                const percentage = Math.round((uploadedBytes / fileSize) * 100);
                 await onProgress({
                     percent: percentage,
                     transferred: uploadedBytes,
-                    total: size
+                    total: fileSize
                 });
                 const sh = fileUrlHeaders || {};
-                sh['Range'] = `bytes=${resumeFromPosition}-${size - 1}`;
+                sh['Range'] = `bytes=${resumeFromPosition}-${fileSize - 1}`;
 
                 const utoCall = new URL('https://streampipe.mztrading.workers.dev');
                 utoCall.searchParams.append('s', fileUrl);

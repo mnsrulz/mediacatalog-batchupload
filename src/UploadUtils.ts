@@ -128,17 +128,18 @@ export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress:
                 });
                 const sh = fileUrlHeaders || {};
                 sh['Range'] = `bytes=${resumeFromPosition}-${size - 1}`;
-                
+
                 const utoCall = new URL('https://streampipe.mztrading.workers.dev');
                 utoCall.searchParams.append('s', fileUrl);
                 utoCall.searchParams.append('t', remoteUrl);
-                
+
                 Object.keys(sh).forEach(k => {
                     utoCall.searchParams.append('sh', `${k}:${sh[k]}`);
                 })
-                
+
                 console.log(`issuing the fetch request`);
-                await fetch(utoCall);
+                const resp = await fetch(utoCall);
+                console.log(`${resp.status} - Response: ${await resp.text()}`);
             } catch (e) {
                 console.error(`Re issuing the request after encoutering the error, ${e}`);
             }

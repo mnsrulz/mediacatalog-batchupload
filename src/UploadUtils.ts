@@ -107,6 +107,48 @@ export const uploadAsync = async (queuedItem: RequestItemResponse, onProgress: (
     return isLastRequest;
 }
 
+export const uploadAsyncV2 = async (queuedItem: RequestItemResponse, onProgress: (prog: UploadProgress) => any
+) => {
+    const { fileUrl, fileName, rawUpload, remoteUrl, fileUrlHeaders, fileSize } = queuedItem;
+    console.log('Initializing the upload...')
+    let uploadedBytes = 0, size = 0, resumeFromPosition = 0;
+    if (rawUpload) {
+        while (true) {
+            try {
+                const { rangeEnd } = await fetchStatusOfRemoteUpload(remoteUrl);
+                resumeFromPosition = rangeEnd + 1;
+                uploadedBytes = rangeEnd + 1;
+
+                // optimize it later
+                const percentage = Math.round((uploadedBytes / size) * 100);
+                await onProgress({
+                    percent: percentage,
+                    transferred: uploadedBytes,
+                    total: size
+                });
+                const sh = fileUrlHeaders || {};
+                sh['Range'] = `bytes=${resumeFromPosition}-${size - 1}`;
+                
+                const utoCall = new URL('https://streampipe.mztrading.workers.dev');
+                utoCall.searchParams.append('s', fileUrl);
+                utoCall.searchParams.append('t', remoteUrl);
+                
+                Object.keys(sh).forEach(k => {
+                    utoCall.searchParams.append('sh', `${k}:${sh[k]}`);
+                })
+                
+                console.log(`issuing the fetch request`);
+                await fetch(utoCall);
+            } catch (e) {
+                console.error(`Re issuing the request after encoutering the error, ${e}`);
+            }
+            return true;
+        }
+    } else {
+        throw new Error(`Only raw streams are currently supported!`);
+    }
+}
+
 //returns the position till the data was previously uploaded. Returns -1 if no data was previously uploaded.
 const fetchStatusOfRemoteUpload = async (remoteUrl: string) => {
     console.log(`Checking remote upload status: ${remoteUrl}`);

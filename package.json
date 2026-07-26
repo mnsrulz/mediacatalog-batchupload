@@ -14,7 +14,8 @@
 	"dependencies": {
 		"hono": "4.11.1",
 		"ky": "^2.0.2",
-		"throttle-debounce": "^5.0.2"
+		"throttle-debounce": "^5.0.2",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20260702.1",

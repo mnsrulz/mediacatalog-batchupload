@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { RequestItemResponse } from "./Models";
 import { processItem } from "./BatchUploadRequestProcessor";
+import { BatchUploadSchema } from "./Validation";
 import type { ExecutionContext, MessageBatch, Queue } from "@cloudflare/workers-types";
 type Env = {
 	BATCHUPLOADQUEUE: Queue;
@@ -37,7 +38,12 @@ app.get('/', (c) => {
 })
 
 app.post('/batchupload', async (c) => {
-	const json = await c.req.json<RequestItemResponse | RequestItemResponse[]>();
+	const raw = await c.req.json();
+	const result = BatchUploadSchema.safeParse(raw);
+	if (!result.success) {
+		return c.json({ success: false, errors: result.error.errors }, 400);
+	}
+	const json = result.data;
 	if (Array.isArray(json)) {
 		await c.env.BATCHUPLOADQUEUE.sendBatch(json.map((item) => ({
 			body: item

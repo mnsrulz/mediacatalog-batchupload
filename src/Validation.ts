@@ -10,8 +10,8 @@ export const RequestItemResponseSchema = z.object({
     rawUpload: z.boolean(),
     fileName: z.string(),
     fileUrlHeaders: z.record(z.string(), z.string()).optional().default({}),
-    started: z.boolean(),
-});
+    started: z.boolean().optional().default(false),
+}).passthrough();
 
 export const BatchUploadSchema = z.union([
     RequestItemResponseSchema,

@@ -17,3 +17,8 @@ export const BatchUploadSchema = z.union([
     RequestItemResponseSchema,
     z.array(RequestItemResponseSchema),
 ]);
+
+export const UrlCheckSchema = z.object({
+    fileUrl: z.string(),
+    fileUrlHeaders: z.record(z.string(), z.string()),
+});

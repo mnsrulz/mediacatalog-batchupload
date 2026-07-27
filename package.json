@@ -19,6 +19,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20260702.1",
+		"@types/content-disposition": "^0.5.9",
 		"@types/throttle-debounce": "^5.0.2",
 		"typescript": "5.9.3",
 		"wrangler": "4.88.0"

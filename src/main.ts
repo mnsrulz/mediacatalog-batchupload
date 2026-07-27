@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { RequestItemResponse } from "./Models";
 import { processItem } from "./BatchUploadRequestProcessor";
-import { BatchUploadSchema, UrlCheckSchema } from "./Validation";
-import contentDisposition from "content-disposition";
+import { BatchUploadSchema } from "./Validation";
 import type { ExecutionContext, MessageBatch, Queue } from "@cloudflare/workers-types";
 type Env = {
 	BATCHUPLOADQUEUE: Queue;
@@ -56,49 +55,49 @@ app.post('/batchupload', async (c) => {
 	return c.json({ message: 'Batch upload request received' });
 });
 
-app.post('/api/validate-url', async (c) => {
-	const raw = await c.req.json();
-	const result = UrlCheckSchema.safeParse(raw);
-	if (!result.success) {
-		return c.json({ success: false, errors: result.error.issues }, 400);
-	}
-	const { fileUrl, fileUrlHeaders } = result.data;
+// app.post('/api/validate-url', async (c) => {
+// 	const raw = await c.req.json();
+// 	const result = UrlCheckSchema.safeParse(raw);
+// 	if (!result.success) {
+// 		return c.json({ success: false, errors: result.error.issues }, 400);
+// 	}
+// 	const { fileUrl, fileUrlHeaders } = result.data;
 
-	let resp = await fetch(fileUrl, { method: "HEAD", headers: fileUrlHeaders });
+// 	let resp = await fetch(fileUrl, { method: "HEAD", headers: fileUrlHeaders });
 
-	// Fallback to GET if HEAD is not supported (e.g. 405 Method Not Allowed)
-	if (!resp.ok) {
-		resp = await fetch(fileUrl, { method: "GET", headers: { ...fileUrlHeaders, Range: "bytes=0-1" } });
-	}
+// 	// Fallback to GET if HEAD is not supported (e.g. 405 Method Not Allowed)
+// 	if (!resp.ok) {
+// 		resp = await fetch(fileUrl, { method: "GET", headers: { ...fileUrlHeaders, Range: "bytes=0-1" } });
+// 	}
 
-	const supportsRange = resp.status === 206;
+// 	const supportsRange = resp.status === 206;
 
-	if (!supportsRange) {
-		resp = await fetch(fileUrl, { method: "GET", headers: fileUrlHeaders });
-	}
+// 	if (!supportsRange) {
+// 		resp = await fetch(fileUrl, { method: "GET", headers: fileUrlHeaders });
+// 	}
 
-	const acceptsRanges = resp.headers.get("accept-ranges") === "bytes";
-	const size = resp.headers.get("content-length");
-	const contentDispositionHeader = resp.headers.get("content-disposition");
+// 	const acceptsRanges = resp.headers.get("accept-ranges") === "bytes";
+// 	const size = resp.headers.get("content-length");
+// 	const contentDispositionHeader = resp.headers.get("content-disposition");
 
-	let fileName: string | null = null;
-	if (contentDispositionHeader) {
-		try {
-			const parsed = contentDisposition.parse(contentDispositionHeader);
-			fileName = parsed.parameters.filename || null;
-		} catch {
-			// ignore parse errors
-		}
-	}
+// 	let fileName: string | null = null;
+// 	if (contentDispositionHeader) {
+// 		try {
+// 			const parsed = contentDisposition.parse(contentDispositionHeader);
+// 			fileName = parsed.parameters.filename || null;
+// 		} catch {
+// 			// ignore parse errors
+// 		}
+// 	}
 
-	return c.json({
-		success: true,
-		acceptsRanges,
-		size: size ? parseInt(size, 10) : null,
-		fileName,
-		status: resp.status,
-	});
-});
+// 	return c.json({
+// 		success: true,
+// 		acceptsRanges,
+// 		size: size ? parseInt(size, 10) : null,
+// 		fileName,
+// 		status: resp.status,
+// 	});
+// });
 
 // Export the Hono app
 export default {

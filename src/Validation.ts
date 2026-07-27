@@ -4,7 +4,7 @@ export const RequestItemResponseSchema = z.object({
     id: z.string(),
     requestId: z.string(),
     fileUrl: z.string(),
-    fileSize: z.number().positive().int(),
+    fileSize: z.int().positive(),
     parentUrl: z.string(),
     remoteUrl: z.string(),
     rawUpload: z.boolean(),

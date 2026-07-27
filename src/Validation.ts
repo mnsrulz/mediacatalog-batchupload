@@ -9,7 +9,7 @@ export const RequestItemResponseSchema = z.object({
     remoteUrl: z.string(),
     rawUpload: z.boolean(),
     fileName: z.string(),
-    fileUrlHeaders: z.record(z.string(), z.string()),
+    fileUrlHeaders: z.record(z.string(), z.string()).optional().default({}),
     started: z.boolean(),
 });
 

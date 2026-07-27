@@ -43,6 +43,7 @@ app.post('/batchupload', async (c) => {
 	if (!result.success) {
 		return c.json({ success: false, errors: result.error.issues }, 400);
 	}
+	console.log(`Validation succeded!`)
 	const json = result.data;
 	if (Array.isArray(json)) {
 		await c.env.BATCHUPLOADQUEUE.sendBatch(json.map((item) => ({
@@ -51,6 +52,8 @@ app.post('/batchupload', async (c) => {
 	} else {
 		await c.env.BATCHUPLOADQUEUE.send(json);
 	}
+
+	console.log(`Published to queue!`)
 
 	return c.json({ message: 'Batch upload request received' });
 });
